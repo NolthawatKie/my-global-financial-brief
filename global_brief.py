@@ -35,6 +35,7 @@ import json
 import urllib.request
 import urllib.error
 import urllib.parse
+import http.cookiejar
 
 # ── CLI flags ──────────────────────────────────────────────────────────────────
 DRY_RUN_FLAG = "--dry-run" in sys.argv
@@ -133,24 +134,62 @@ TICKERS = {
     "^IRX":   "US 3M Yield",
 }
 
+_YF_SESSION = None  # (opener, crumb, ua)
+
+_YF_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+
+def _get_yahoo_session():
+    global _YF_SESSION
+    if _YF_SESSION:
+        return _YF_SESSION
+    jar    = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    # Seed cookies
+    try:
+        opener.open(urllib.request.Request(
+            "https://finance.yahoo.com/",
+            headers={"User-Agent": _YF_UA, "Accept": "text/html"}
+        ), timeout=15)
+    except Exception:
+        pass
+    # Get crumb
+    crumb = ""
+    try:
+        req = urllib.request.Request(
+            "https://query1.finance.yahoo.com/v1/test/getcrumb",
+            headers={"User-Agent": _YF_UA}
+        )
+        with opener.open(req, timeout=15) as r:
+            crumb = r.read().decode().strip()
+    except Exception:
+        pass
+    _YF_SESSION = (opener, crumb)
+    return _YF_SESSION
+
 def fetch_yahoo(symbol: str) -> dict:
     """
     Fetch quote from Yahoo Finance v8 API (no key required).
     Returns dict with price, change_pct, currency, market_state.
     Falls back to empty dict on any error.
     """
+    opener, crumb = _get_yahoo_session()
+    qs  = "?interval=1d&range=2d"
+    qs += f"&crumb={urllib.parse.quote(crumb)}" if crumb else ""
     url = (
-        "https://query1.finance.yahoo.com/v8/finance/chart/"
+        "https://query2.finance.yahoo.com/v8/finance/chart/"
         + urllib.parse.quote(symbol)
-        + "?interval=1d&range=2d"
+        + qs
     )
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
-    }
-    req = urllib.request.Request(url, headers=headers)
+    req = urllib.request.Request(url, headers={
+        "User-Agent": _YF_UA,
+        "Accept":     "application/json",
+    })
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with opener.open(req, timeout=15) as resp:
             data = json.loads(resp.read())
         meta  = data["chart"]["result"][0]["meta"]
         price = meta.get("regularMarketPrice")
@@ -247,9 +286,10 @@ def call_gemini(prompt: str, max_tokens: int = 8192, retries: int = 3) -> str:
         except urllib.error.HTTPError as e:
             body = e.read().decode()
             print(f"[WARN] Gemini attempt {attempt}/{retries} — HTTP {e.code}: {body[:120]}")
-            if e.code == 429 and attempt < retries:
+            if e.code in (429, 503) and attempt < retries:
                 wait = 2 ** attempt
-                print(f"       Rate limited — waiting {wait}s before retry...")
+                label = "Rate limited" if e.code == 429 else "Service unavailable"
+                print(f"       {label} — waiting {wait}s before retry...")
                 time.sleep(wait)
             else:
                 raise
