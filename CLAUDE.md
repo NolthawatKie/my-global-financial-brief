@@ -23,6 +23,17 @@ python3 global_brief.py --dry-run
 # 0 2 * * * python3 /path/to/global_brief.py >> /path/to/run.log 2>&1
 ```
 
+### GitHub Actions (recommended for automation)
+
+The workflow at `.github/workflows/global-brief.yml` runs automatically at 09:00 Bangkok time daily. No local machine needed.
+
+Required GitHub Secrets (Settings → Secrets → Actions):
+- `GEMINI_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+
+Trigger manually via Actions → Global Financial Brief → Run workflow.
+
 ## Environment setup
 
 Copy `.env.example` to `.env` and fill in the required vars:
@@ -49,6 +60,7 @@ The script loads `.env` itself with a built-in parser — no `python-dotenv` nee
 | `assets.yaml` | User watchlist: stocks, ETFs, mutual funds to track (Phase 2) |
 | `.env` | Secrets — not committed |
 | `.env.example` | Template for required env vars |
+| `.github/workflows/global-brief.yml` | GitHub Actions workflow — runs daily at 09:00 Bangkok |
 | `bk/` | Local markdown backup files (examples) |
 | `ROADMAP.md` | Phase-by-phase implementation plan |
 | `run.log` | Execution log written by the script |

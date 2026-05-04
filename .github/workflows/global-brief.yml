@@ -1,0 +1,26 @@
+name: Global Financial Brief
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 09:00 Bangkok (UTC+7)
+  workflow_dispatch:       
+
+jobs:
+  run-brief:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run global brief
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 global_brief.py

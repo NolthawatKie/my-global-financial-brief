@@ -31,7 +31,14 @@ A Python script that generates a daily global financial brief for a retail inves
    python3 global_brief.py
    ```
 
-4. Schedule daily at 09:00 Bangkok time (UTC+7):
+4. Schedule daily at 09:00 Bangkok time — two options:
+
+   **GitHub Actions (recommended — no machine needed):**
+   - Add the three secrets above to your repo: Settings → Secrets and variables → Actions
+   - Push `.github/workflows/global-brief.yml` to your repo
+   - The workflow runs automatically every day; trigger manually via Actions → Run workflow
+
+   **Local cron (Mac/Linux):**
    ```bash
    # Add to crontab (crontab -e)
    0 2 * * * python3 /full/path/to/global_brief.py >> /full/path/to/run.log 2>&1
